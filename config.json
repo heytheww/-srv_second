@@ -1,0 +1,7 @@
+{
+    "reqHost":"localhost:1234",
+    "scheme":"http",
+    "reqPath":"/buy",
+    "forbiddenPath":"/403",
+    "GListenPort":"8080"
+}
