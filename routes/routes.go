@@ -37,18 +37,17 @@ func (r *Routes) HandleLogin(resp http.ResponseWriter, req *http.Request) {
 		HMACSecret: []byte("abc123"), // 秘钥
 	}
 
-	// 偷懒格式化
 	claims := &jwt.MyClaims{
-		user,
-		gojwt.RegisteredClaims{
-			ExpiresAt: gojwt.NewNumericDate(time.Now().Add(3 * time.Hour)), // 过期时间
-			IssuedAt:  gojwt.NewNumericDate(time.Now()),                    // 签发时间
-			NotBefore: gojwt.NewNumericDate(time.Now()),                    // 生效时间
-			Issuer:    "admin",                                             // 签发人
-			Subject:   "loginByPwd",                                        // 主题
-			ID:        "-",
-			Audience:  gojwt.ClaimStrings{"buyer"}, // 受众
-		},
+		User: user,
+	}
+	claims.RegisteredClaims = gojwt.RegisteredClaims{
+		ExpiresAt: gojwt.NewNumericDate(time.Now().Add(3 * time.Hour)), // 过期时间
+		IssuedAt:  gojwt.NewNumericDate(time.Now()),                    // 签发时间
+		NotBefore: gojwt.NewNumericDate(time.Now()),                    // 生效时间
+		Issuer:    "admin",                                             // 签发人
+		Subject:   "loginByPwd",                                        // 主题
+		ID:        "-",
+		Audience:  gojwt.ClaimStrings{"buyer"}, // 受众
 	}
 
 	token, err := j.Sign(claims)
