@@ -5,31 +5,63 @@ import (
 	"net/http"
 	"srv_second/limit"
 	"srv_second/routes"
+
+	"srv_second/redis"
+
+	goredis "github.com/redis/go-redis/v9"
 )
 
-// https://chai2010.gitbooks.io/advanced-go-programming-book/content/ch5-web/ch5-03-middleware.html
-// 中间件
-func limitMiddleware(next http.Handler, lm *limit.Limit) func(http.ResponseWriter, *http.Request) {
-	// 限流准备:1个令牌/秒，桶容量100
+// 自定义路由
+type MyMux struct {
+	RDB     *goredis.Client
+	Limiter *limit.Limit
+}
 
-	return func(w http.ResponseWriter, r *http.Request) {
-		lm.ConsumeOne()
-		// next handler
-		next.ServeHTTP(w, r)
+func (p *MyMux) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
+	r := routes.Routes{}
+
+	if req.URL.Path == "/" {
+		resp.Write([]byte(""))
+		r.HandleDfault(resp, req)
+		return
 	}
+	if req.URL.Path == "/login" {
+		r.HandleLogin(resp, req)
+		return
+	}
+	if req.URL.Path == "/buy" {
+		// 限流:1个令牌/秒，桶容量100
+		p.Limiter.ConsumeOne()
+
+		r.HandleBuy(resp, req, p.RDB)
+		return
+	}
+	http.NotFound(resp, req)
 }
 
 func main() {
 
-	lm := limit.Limit{Ctx: context.Background()}
-	limit := 10000 // 10s
-	lm.InitLimit(limit, 10)
+	var ctx = context.Background()
+	rd := redis.Redis{
+		Ctx:      ctx,
+		Addr:     "43.136.78.171:30120",
+		Password: "test001",
+		DB:       0,
+	}
+	var err error
+	rd.Init()
+	rdb := rd.GetDB()
 
-	r := routes.Routes{}
-	http.HandleFunc("/login", r.HandleLogin)
-	http.HandleFunc("/buy", limitMiddleware(http.HandlerFunc((r.HandleBuy)), &lm))
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(""))
-	})
-	http.ListenAndServe(":1234", nil)
+	// 初始化商品 G18012345 信息，这步应在其他模块，比如商品运维模块完成
+	err = rdb.HSet(ctx, "GOOD_Hash_G18012345", "goodsId_count", 0).Err()
+	if err != nil {
+		panic(err)
+	}
+
+	limiter := limit.Limit{Ctx: context.Background()}
+	limit := 1000 // 1s
+	limiter.InitLimit(limit, 10)
+
+	mux := &MyMux{RDB: rdb, Limiter: &limiter}
+	http.ListenAndServe(":1234", mux)
 }

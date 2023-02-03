@@ -8,7 +8,9 @@
 - [ ] 单元测试
 
 目前已经实现的功能是：  
-
+1 秒杀开始前，服务读取goodsId_count为0，直接返回未开始；秒杀开始时，将goodsId_count改为 >0 ，标志秒杀开始，goodsId_count为 0 后，拦截所有请求。  
+2 goodsId_count保存在redis中，实现外部系统修改goodsId_count马上触发秒杀开始。  
+3 秒杀成功，下单用户ID放入set中。
 
 
 ## Background
